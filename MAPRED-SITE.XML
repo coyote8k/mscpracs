@@ -1,0 +1,421 @@
+Parctical 1
+Install, configure and run Hadoop and HDFS ad explore HDFS. 
+
+Download Virtual machine setup ie VMware setup (in which Hadoop is configured.Step 1: Load the server on VM ware workstation.
+Step 2: To enable admin login open shell and reset root login.
+Open Terminal 192.168.119.132:4200
+In Sandbox login enter root
+And Password is Hadoop
+And reset the password
+Note: When we type hdfs dfs -ls it will execute in Hadoop system directory.
+Step 3: Reset Admin account Password
+To use graphical user interface login to 192.168.119.132:4200
+Click on Launch Dashboard.
+Enter the username and password for admin login.
+To view file in HDFS click on HDFS and click on File view
+
+Commands:
+1)To view root folder file from terminal use command hdfs dfs -ls /user and press enter.
+It will display all the files in the root user that we see in UI(Screenshot 2).
+ls: This command is used to list all the files
+2) mkdir: To create a directory.
+Create a folder in Hadoop directory. Type command hdfs dfs -mkdir /bigdatatest and enter. After it execute the command, we will see whether it is created folder in UI
+3)Create a file in local directory 
+Cat: Create a file.
+Cat>>
+To terminate press ctrl+d
+
+4)To upload files/directory to from local to HDFS.
+Put: to move a local file or directories into the distributed file systemCommand: hdfs dfs -put a1 /bigdatatest/ and hdfs dfs -put a2 /bigdatatest/ will upload both the files.
+Refresh the user interface we can see both the files.
+
+To download files/directories to from hdfs to localGet: To copy files/folders from hdfs store to local file system.Command: hdfs dfs -get/bigdatatest/a1 and hdfs dfs -get /bigdatatest/ a2 will upload both the files
+5)To remove file from local use rm command
+6)To remove file from Hadoop directory
+Command: hdfs dfs -rm a2 /gibdatatest/a2 -> Now refresh the UI and the file will be deleted.
+
+7)To download all the files from hdfs to local
+Command: hdfs dfs -get /bigdatatest/*
+
+Practical 2
+Implement word count / frequency programs using MapReduce
+write program save as WordCount.java////////////////////////
+
+import java.io.IOException;
+import java.util.StringTokenizer;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+public class WordCount { public static class TokenizerMapper extends Mapper<Object, Text, Text, IntWritable>{
+ private final static IntWritable one = new IntWritable(1);
+ private Text word = new Text();
+ public void map(Object key, Text value, Context context
+ ) throws IOException, InterruptedException {
+ StringTokenizer itr = new StringTokenizer(value.toString());
+ while (itr.hasMoreTokens()) {//"This is the output is the"
+ word.set(itr.nextToken());
+ context.write(word, one);
+ }
+ }
+ }
+public static class IntSumReducer extends Reducer<Text,IntWritable,Text,IntWritable> {
+ private IntWritable result = new IntWritable();
+ public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, 
+InterruptedException 
+ {//is,3
+ int sum = 0;
+ for (IntWritable val : values) {
+ sum += val.get();
+ }
+ result.set(sum);
+ context.write(key, result);
+ }
+ }public static void main(String[] args) throws Exception {
+ Configuration conf = new Configuration();
+ Job job = Job.getInstance(conf, "word count");
+ job.setJarByClass(WordCount.class);
+ job.setMapperClass(TokenizerMapper.class);
+ job.setCombinerClass(IntSumReducer.class);
+ job.setReducerClass(IntSumReducer.class);
+ job.setOutputKeyClass(Text.class);
+ job.setOutputValueClass(IntWritable.class);
+ FileInputFormat.addInputPath(job, new Path(args[0]));
+ FileOutputFormat.setOutputPath(job, new Path(args[1]));
+ System.exit(job.waitForCompletion(true)?0:1);
+ }
+}
+
+Text File-> Write anything to be counted.
+
+Open the terminal with 192.168.119.132/4200
+Enter the login: root and the password and enter
+
+Create a folder in local directory.
+Command: mkdir mscitp2
+Change the directory cd mscitp2
+
+Now create input file
+Command: cat >> wordin.txt
+Paste text from word file here
+
+Create another file wordcount.java
+Paste the java code.
+
+To compile -> export HADOOP_CLASSPATH=$(hadoop classpath)mkdir classes (To keep the compile files)
+javac -classpath ${HADOOP_CLASSPATH} -d classes WordCount.java
+
+Now we have to bind all the class into single jar file with below command
+jar -cvf WordCount.jar -C classes/ 
+
+hdfs dfs -put wordin.txt /p2
+
+hadoop jar WordCount.jar WordCount /p2/ /p2output
+
+To see output : hdfs dfs -cat /p2ouput/*
+
+
+Practical 3:
+Implement an MapReduce program that processes a weather dataset.
+
+Java program:
+File Name = MyMaxMin.java
+
+import java.io.IOException;
+import java.util.Iterator;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.conf.Configuration;public class MyMaxMin {	
+	// Mapper
+	
+	/*MaxTemperatureMapper class is static
+	* and extends Mapper abstract class
+	* having four Hadoop generics type
+	* LongWritable, Text, Text, Text.
+	*/
+	
+	
+	public static class MaxTemperatureMapper extends
+			Mapper<LongWritable, Text, Text, Text> {
+public static final int MISSING = 9999;
+		
+	@Override
+		public void map(LongWritable arg0, Text Value, Context context)
+				throws IOException, InterruptedException {
+			
+		String line = Value.toString();
+	
+			// Check for the empty line
+			if (!(line.length() == 0)) {
+				
+				// from character 6 to 14 we have
+				// the date in our dataset
+				String date = line.substring(6, 14);				// similarly we have taken the maximum
+				// temperature from 39 to 45 characters
+				float temp_Max = Float.parseFloat(line.substring(39, 45).trim());
+				
+				// similarly we have taken the minimum
+				// temperature from 47 to 53 characters
+				
+				float temp_Min = Float.parseFloat(line.substring(47, 53).trim());				// if maximum temperature is
+				// greater than 30, it is a hot day
+				if (temp_Max > 30.0) {
+					
+					// Hot day
+					context.write(new Text("The Day is Hot Day :" + date),
+										new Text(String.valueOf(temp_Max)));
+				}				// if the minimum temperature is
+				// less than 15, it is a cold day
+				if (temp_Min < 15) {
+					
+					// Cold day
+					context.write(new Text("The Day is Cold Day :" + date),
+							new Text(String.valueOf(temp_Min)));
+				}
+			}
+		}	}// Reducer
+	
+	/*MaxTemperatureReducer class is static
+	and extends Reducer abstract class
+	having four Hadoop generics type
+	Text, Text, Text, Text.
+	*/
+	//The Day is Cold Day :20150101 ,-21.8
+	
+	public static class MaxTemperatureReducer extends
+			Reducer<Text, Text, Text, Text> {		/**
+		* @method reduce
+		* This method takes the input as key and
+		* list of values pair from the mapper,
+		* it does aggregation based on keys and
+		* produces the final context.
+		*/
+		
+		public void reduce(Text Key, Iterator<Text> Values, Context context)
+				throws IOException, InterruptedException {
+			// putting all the values in
+			// temperature variable of type String
+			String temperature = Values.next().toString();
+			context.write(Key, new Text(temperature));
+		}	}	/**
+	* @method main
+	* This method is used for setting
+	* all the configuration properties.
+	* It acts as a driver for map-reduce
+	* code.
+	*/
+	
+	public static void main(String[] args) throws Exception {		// reads the default configuration of the
+		// cluster from the configuration XML files
+		Configuration conf = new Configuration();
+		
+		// Initializing the job with the
+		// default configuration of the cluster	
+		Job job = new Job(conf, "weather example");
+		
+		// Assigning the driver class name
+		job.setJarByClass(MyMaxMin.class);		// Key type coming out of mapper
+		job.setMapOutputKeyClass(Text.class);
+		
+		// value type coming out of mapper
+		job.setMapOutputValueClass(Text.class);		// Defining the mapper class name
+		job.setMapperClass(MaxTemperatureMapper.class);
+		
+		// Defining the reducer class name
+		job.setReducerClass(MaxTemperatureReducer.class);		// Defining input Format class which is
+		// responsible to parse the dataset
+		// into a key value pair
+		job.setInputFormatClass(TextInputFormat.class);
+		
+		// Defining output Format class which is
+		// responsible to parse the dataset
+		// into a key value pair
+		job.setOutputFormatClass(TextOutputFormat.class);		// setting the second argument
+		// as a path in a path variable
+		Path OutputPath = new Path(args[1]);		// Configuring the input path
+		// from the filesystem into the job
+		FileInputFormat.addInputPath(job, new Path(args[0]));		// Configuring the output path from
+		// the filesystem into the job
+		FileOutputFormat.setOutputPath(job, new Path(args[1]));		// deleting the context path automatically
+		// from hdfs so that we don't have
+		// to delete it explicitly
+		OutputPath.getFileSystem(conf).delete(OutputPath);		
+		// flag value becomes false
+		System.exit(job.waitForCompletion(true) ? 0 : 1);	}
+}
+
+
+Start Server:
+Open the terminal with 192.168.119.132/4200
+Enter the login: root and the password and enter
+
+Commands:
+mkdir mscitp3
+cd mscitp3
+cat >> weatherin2.txt
+//Paste the weather dataset by right clicking on terminal (if not available dataset can be found online)
+cat >>MyMaxMin.java
+//Paste Java code
+export HADOOP_CLASSPATH=$(hadoop classpath) ////compile and to create jar file
+mkdir classes
+javac -classpath ${HADOOP_CLASSPATH} -d classes MyMaxMin.java
+jar -cvf MyMaxMin.jar -C classes/ .
+hdfs dfs -mkdir /p3input123
+hdfs dfs -put weatherin2.txt /p3input123
+hadoop jar MyMaxMin.jar MyMaxMin /p3inputw /output123
+To see Output -> hdfs dfs -cat /output123/*
+
+
+Parctical 4:
+Implement the program using Pig
+
+Dataset:
+001,Rajiv,Reddy,21,9848022337,Hyderabad
+002,siddarth,Battacharya,22,9848022338,Kolkata
+003,Rajesh,Khanna,22,9848022339,Delhi
+004,Preethi,Agarwal,21,9848022330,Pune
+005,Trupthi,Mohanthy,23,9848022336,Bhuwaneshwar
+006,Archana,Mishra,23,9848022335,Chennai
+007,Komal,Nayak,24,9848022334,trivendram
+008,Bharathi,Nambiayar,24,9848022333,Chennai
+#student.txtcreate a directory and get into that directory
+
+Commands:
+mkdir p5mscit
+cat >>student.txt
+//Paste Dataset here
+vi student.txt and press i //Remove space once done type -> wq and enter
+cat >>program.pig //Enter Java code after this
+ctrl +d
+
+Java File:
+student = LOAD 'student.txt' USING PigStorage(',')
+as (id:int, firstname:chararray, lastname:chararray, age:int, phone:chararray, city:chararray);
+student_order = ORDER student BY age DESC;student_limit = LIMIT student_order 4;Dump student_limit;
+
+Commands:
+hdfs dfs -put student.txt /user/root/
+pig program.pig -> To see output
+
+
+Practical 5
+Implement the application in Hive
+
+Dataset:
+001,Rajiv,Reddy,21,9848022337,Hyderabad
+002,siddarth,Battacharya,22,9848022338,Kolkata
+003,Rajesh,Khanna,22,9848022339,Delhi
+004,Preethi,Agarwal,21,9848022330,Pune
+005,Trupthi,Mohanthy,23,9848022336,Bhuwaneshwar
+006,Archana,Mishra,23,9848022335,Chennai
+007,Komal,Nayak,24,9848022334,trivendram
+008,Bharathi,Nambiayar,24,9848022333,Chennai
+#student.txtcreate a directory and get into that directory
+
+
+Commands:
+mkdir p6mscit
+cat >>data.txt // Paste data set here
+ctrl +d
+vi student.txt and press i //Remove space once done type -> wq and enter
+hive // Wrire below in hive
+CREATE TABLE IF NOT EXISTS employee ( eid int, fname String,
+lname String, age int, contact String, city String)
+COMMENT 'Employee details'
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY ','
+LINES TERMINATED BY '\n'
+STORED AS TEXTFILE;\
+enter //quit if enter doesn't work
+
+LOAD DATA LOCAL INPATH 'data.txt' OVERWRITE INTO TABLE 
+employeeselect * from employee; -> To see output
+
+
+Practical 6
+Implement an application that stores big data in Hbase/ Python
+
+
+Go to GUI page and start the hbase service.
+Click on OK 
+start region server
+start zooperkeeper server
+start hbase server
+
+Open Terminal from -> 192.168.119.132:4200
+
+
+hbase shell
+create ‘test’, ‘cf’
+describe 'test'
+
+put  ‘test’,  ‘row1’,  ‘cf:a’,  ‘value1’ //Copy paste all 3 lines
+put  ‘test’,  ‘row2’,  ‘cf:b’,  ‘value2’
+put  ‘test’,  ‘row3’,  ‘cf:c’,  ‘value3’
+
+Hbase thrift start -p 9090 –inforport 9095
+//create table again like above -> create ‘test’, ‘cf’
+
+Python Code:
+Import happybase as hb
+conn=hb.connection(‘192.168.119.132’, 9090)
+print(conn.table(‘test’).row(‘row1’)
+print(conn.table(‘test’).row(‘row2’)
+print(conn.table(‘test’).row(‘row3’)
+print(conn.table(‘test’).row(‘row4’)
+table = conn.table(‘test’)
+table.put(b’row5’, {b’cf:r’: b’value5’})
+print(conn.table(‘test’).row(‘row5’)
+
+scan ‘test’ //or table name instead of test -> To see output
+
+
+
+Practical 7
+Implement Decision tree classification techniques
+
+Needs to be performed in Jupyter notebook
+
+from sklearn.datasets import load_iris
+from sklearn import tree
+iris = load_iris()
+X, y = iris.data, iris.target
+clf = tree. DecisionTreeClassifier()
+clf = clf.fit(X, y).
+
+tree.plot_tree(clf)
+
+Practical 8
+Implement SVM classification techniques
+
+from sklearn import datasets
+cancer = datasets.load_breast_cancer()
+print("Features: ", cancer.feature_names)
+print("Labels: ", cancer.target_names)
+cancer.data.shape
+print(cancer.data[0:5])
+print(cancer.target)
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(cancer.data, cancer.target, test_size=0.3,random_state=109)
+
+from sklearn import svm
+clf = svm.SVC(kernel='linear')
+clf.fit(X_train, y_train)
+y_pred = clf.predict(X_test)
+
+from sklearn import metrics
+print("Accuracy:" ,metrics.accuracy_score(y_test,y_pred))
+
